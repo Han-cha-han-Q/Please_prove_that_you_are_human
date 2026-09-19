@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>人であることを証明してください</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --text: #202124;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --border: #d1d5db;
+    --danger: #dc2626;
+    --success: #15803d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    text-align: center;
+    padding: 34px 16px 18px;
+  }
+  h1 {
+    font-size: clamp(20px, 4vw, 34px);
+    margin: 0;
+    letter-spacing: .04em;
+    font-weight: 750;
+  }
+  main {
+    width: min(94%, 620px);
+    margin: 12px auto 30px;
+    flex: 1;
+  }
+  .captcha-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 8px 28px rgba(0,0,0,.06);
+    padding: 22px;
+  }
+  .captcha-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 15px;
+  }
+  .captcha-label {
+    font-weight: 700;
+    font-size: 18px;
+  }
+  .round {
+    color: var(--muted);
+    font-size: 14px;
+    white-space: nowrap;
+  }
+  .instruction {
+    margin: 0 0 16px;
+    color: #374151;
+    line-height: 1.6;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+    background: #e5e7eb;
+    padding: 5px;
+    border-radius: 8px;
+  }
+  .tile {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    border: 0;
+    padding: 0;
+    overflow: hidden;
+    cursor: pointer;
+    background: #ddd;
+    outline-offset: 3px;
+  }
+  .tile img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform .18s, filter .18s;
+  }
+  .tile.selected img {
+    filter: brightness(.48);
+    transform: scale(1.05);
+  }
+  .tile.selected::after {
+    content: "✓";
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: white;
+    font-size: clamp(28px, 7vw, 48px);
+    font-weight: 800;
+    background: rgba(37, 99, 235, .3);
+    text-shadow: 0 1px 4px #111;
+  }
+  .tile-number {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    color: white;
+    background: rgba(0,0,0,.55);
+    font-size: 12px;
+    border-radius: 4px;
+    padding: 2px 5px;
+    z-index: 2;
+  }
+  .actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 18px;
+  }
+  button.action {
+    border: 0;
+    border-radius: 8px;
+    background: var(--accent);
+    color: white;
+    padding: 12px 22px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  button.action:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+  }
+  .progress {
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 99px;
+    overflow: hidden;
+    margin: 20px 0 0;
+  }
+  .progress-bar {
+    height: 100%;
+    background: var(--accent);
+    width: 25%;
+    transition: width .25s;
+  }
+  .result {
+    text-align: center;
+    padding: 28px 12px 10px;
+  }
+  .result h2 {
+    font-size: clamp(23px, 5vw, 34px);
+    margin: 8px 0 18px;
+  }
+  .result p {
+    font-size: 18px;
+    line-height: 1.8;
+    margin: 8px 0;
+  }
+  .person {
+    color: var(--success);
+    font-weight: 800;
+  }
+  .not-person {
+    color: var(--danger);
+    font-weight: 800;
+  }
+  .hidden-result {
+    color: #7c3aed;
+    font-weight: 800;
+  }
+  .post {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 12px 22px;
+    border-radius: 8px;
+    background: #111827;
+    color: white;
+    text-decoration: none;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .restart {
+    margin-top: 18px;
+    background: #374151 !important;
+  }
+  footer {
+    text-align: center;
+    padding: 22px 16px 28px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  footer a { color: inherit; }
+  .hidden { display: none; }
+  @media (max-width: 420px) {
+    .captcha-card { padding: 14px; }
+    .captcha-top { align-items: flex-start; flex-direction: column; gap: 3px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>人であることを証明してください</h1>
+</header>
+
+<main>
+  <section class="captcha-card" id="game">
+    <div class="captcha-top">
+      <div class="captcha-label">画像認証</div>
+      <div class="round" id="round">1 / 4</div>
+    </div>
+    <div class="grid" id="grid" aria-label="画像選択グリッド"></div>
+    <div class="actions">
+      <button class="action" id="next" disabled>次へ</button>
+    </div>
+    <div class="progress"><div class="progress-bar" id="progress"></div></div>
+  </section>
+
+  <section class="captcha-card result hidden" id="result">
+    <div id="resultText"></div>
+    <a class="post" id="postLink" href="#" target="_blank" rel="noopener">Xにクリア結果を投稿</a>
+    <br>
+    <button class="action restart" id="restart">もう一度認証する</button>
+  </section>
+</main>
+
+<footer>
+  制作者：<a href="https://x.com/your_x_id" target="_blank" rel="noopener">@your_x_id</a>
+</footer>
+
+<script>
+const rounds = [
+  { target: [1,3,4,5,6,7,9], letter: "H" },
+  { targets: [[1,2,3,5,7,8,9], [2,5,8]], letter: "I" },
+  { target: [1,2,3,5,8], letter: "T" },
+  { target: [1,2,3,4,6,7,8,9], letter: "O" }
+];
+
+// 画像はサンプルです。必要なら実際のCAPTCHA風画像に差し替えられます。
+const hiddenResults = [
+  { name: "道具", message: "便利です。非常に", patterns: [[[1,2,3,5,8]], [[1,2,3,4,6,7,8,9]], [[1,2,3,4,6,7,8,9]], [[1,4,7,8,9],[2,5,8,9]]] },
+  { name: "丘", message: "高いです。よかったね。", patterns: [[[1,3,4,5,6,7,9]], [[2,5,8],[1,2,3,5,7,8,9]], [[1,4,7,8,9],[2,5,8,9]], [[1,4,7,8,9],[2,5,8,9]]] },
+  { name: "一", message: "なんかよかったですね", patterns: [[[2,5,8],[1,2,3,5,7,8,9]], [[1,2,3,4,7,8,9]], [[1,3,4,5,6,7,9]], [[2,5,8],[1,2,3,5,7,8,9]]] },
+  { name: "違法", message: "アウトです。", patterns: [[[2,5,8],[1,2,3,5,7,8,9]], [[1,3,4,5,6,7,9]], [[1,2,3,4,7,8,9]], [[1,3,4,6,7,8,9]] ] },
+  { name: "包囲", message: "囲まれています。気をつけましょう。", patterns: [[[1,3,4,5,6,7,9]], [[1,2,3,4,7,8,9]], [[1,3,4,6,7,8,9]], [[2,5,8],[1,2,3,5,7,8,9]]] },
+  { name: "かっこいい", message: "きゃーー！！！", patterns: [[[1,2,3,4,7,8,9]], [[1,2,3,4,6,7,8,9]], [[1,2,3,4,6,7,8,9]], [[1,4,7,8,9],[2,5,8,9]]] },
+  { name: "徒歩", message: "移動手段なんですね", patterns: [[[1,2,3,5,8]], [[1,2,3,4,6,7,8,9]], [[1,3,4,5,6,7,9]], [[1,2,3,4,6,7,8,9]]] },
+  { name: "地位", message: "何を診断しているんですか？？", patterns: [[[1,2,3,4,7,8,9]], [[1,3,4,5,6,7,9]], [[2,5,8],[1,2,3,5,7,8,9]], [[2,5,8],[1,2,3,5,7,8,9]]] }
+];
+
+const imageSeeds = [
+  "forest","coffee","mountain","city","cat","ocean","flower","architecture","road",
+  "book","sky","house","tree","bridge","lake","street","dog","sunset"
+];
+
+let current = 0;
+let selected = new Set();
+let results = [];
+let resultsSelections = [];
+
+const grid = document.getElementById("grid");
+const next = document.getElementById("next");
+const roundLabel = document.getElementById("round");
+const progress = document.getElementById("progress");
+const game = document.getElementById("game");
+const result = document.getElementById("result");
+const resultText = document.getElementById("resultText");
+
+function imageUrl(index, round) {
+  // 外部サイトに依存しないSVG画像を生成（読み込み失敗・重複を防止）
+  const palettes = [
+    ["#dbeafe", "#2563eb", "#bfdbfe"],
+    ["#fee2e2", "#dc2626", "#fecaca"],
+    ["#fef3c7", "#d97706", "#fde68a"],
+    ["#dcfce7", "#16a34a", "#bbf7d0"]
+  ];
+  const [bg, main, sub] = palettes[round % palettes.length];
+  const angle = (index * 37 + round * 53) % 360;
+  const shape = index % 3;
+
+  const graphic = shape === 0
+    ? `<circle cx="${80 + index * 19}" cy="${95 + round * 17}" r="${38 + index * 3}" fill="${main}" opacity=".85"/>
+       <path d="M0 300 L${90 + index * 24} 120 L400 300 Z" fill="${sub}"/>`
+    : shape === 1
+    ? `<rect x="${35 + index * 11}" y="${45 + round * 13}" width="${150 + index * 8}" height="${120 + index * 5}" rx="18" fill="${main}" transform="rotate(${angle} 200 200)"/>
+       <circle cx="300" cy="90" r="${25 + index * 2}" fill="${sub}"/>`
+    : `<path d="M200 25 L${370 - index * 8} 330 L${35 + index * 7} 330 Z" fill="${main}" transform="rotate(${angle} 200 200)"/>
+       <circle cx="${70 + index * 25}" cy="${280 - index * 12}" r="30" fill="${sub}"/>`;
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
+    <rect width="400" height="400" fill="${bg}"/>
+    ${graphic}
+    <path d="M0 70 Q120 ${20 + index * 8} 240 80 T400 55" fill="none" stroke="#ffffff" stroke-width="12" opacity=".7"/>
+  </svg>`;
+
+  return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
+}
+
+
+let audioContext;
+
+function playClickSound() {
+  audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
+  if (audioContext.state === "suspended") audioContext.resume();
+
+  const oscillator = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(520, audioContext.currentTime);
+  oscillator.frequency.exponentialRampToValueAtTime(760, audioContext.currentTime + 0.06);
+
+  gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.12, audioContext.currentTime + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.09);
+
+  oscillator.connect(gain);
+  gain.connect(audioContext.destination);
+  oscillator.start();
+  oscillator.stop(audioContext.currentTime + 0.1);
+}
+
+function playTone(frequency, startTime, duration, type = "sine", volume = 0.12) {
+  const oscillator = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(frequency, startTime);
+  gain.gain.setValueAtTime(0.0001, startTime);
+  gain.gain.exponentialRampToValueAtTime(volume, startTime + 0.015);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+  oscillator.connect(gain);
+  gain.connect(audioContext.destination);
+  oscillator.start(startTime);
+  oscillator.stop(startTime + duration + 0.02);
+}
+
+function prepareAudio() {
+  audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
+  if (audioContext.state === "suspended") audioContext.resume();
+  return audioContext.currentTime;
+}
+
+function playClearSound() {
+  const t = prepareAudio();
+  [523.25, 659.25, 783.99].forEach((f, i) => playTone(f, t + i * 0.12, 0.18, "sine", 0.14));
+}
+
+function playHiddenClearSound() {
+  const t = prepareAudio();
+  [392, 523.25, 659.25, 1046.5].forEach((f, i) => playTone(f, t + i * 0.14, 0.22, "triangle", 0.15));
+}
+
+function playFailureSound() {
+  const t = prepareAudio();
+  playTone(330, t, 0.22, "sawtooth", 0.10);
+  playTone(220, t + 0.22, 0.35, "sawtooth", 0.10);
+}
+
+document.addEventListener("click", (event) => {
+  if (event.target.closest("button")) {
+    playClickSound();
+  }
+});
+
+function renderRound() {
+  selected = new Set();
+  grid.innerHTML = "";
+  roundLabel.textContent = `${current + 1} / 4`;
+  progress.style.width = `${((current + 1) / 4) * 100}%`;
+  next.textContent = current === 3 ? "結果を見る" : "次へ";
+  next.disabled = false;
+
+  for (let i = 1; i <= 9; i++) {
+    const tile = document.createElement("button");
+    tile.className = "tile";
+    tile.type = "button";
+    tile.setAttribute("aria-label", `${i}番の画像`);
+    tile.innerHTML = `
+      <span class="tile-number">${i}</span>
+      <img src="${imageUrl(i, current)}" alt="">
+    `;
+    tile.addEventListener("click", () => {
+      if (selected.has(i)) {
+        selected.delete(i);
+        tile.classList.remove("selected");
+      } else {
+        selected.add(i);
+        tile.classList.add("selected");
+      }
+    });
+    grid.appendChild(tile);
+  }
+}
+
+next.addEventListener("click", () => {
+  const targets = rounds[current].targets || [rounds[current].target];
+  const correct = targets.some(target =>
+    target.length === selected.size &&
+    target.every(n => selected.has(n))
+  );
+  results.push(correct);
+  resultsSelections.push([...selected]);
+
+  current++;
+  if (current < 4) {
+    renderRound();
+  } else {
+    showResult();
+  }
+});
+
+function matchesPattern(selectedSet, alternatives) {
+  return alternatives.some(target =>
+    target.length === selectedSet.size && target.every(n => selectedSet.has(n))
+  );
+}
+
+function findHiddenResult() {
+  return hiddenResults.find(hidden =>
+    hidden.patterns.every((alternatives, i) => {
+      const targetSets = alternatives;
+      const actual = resultsSelections[i];
+      return targetSets.some(target => target.length === actual.length && target.every(n => actual.includes(n)));
+    })
+  );
+}
+
+function showResult() {
+  game.classList.add("hidden");
+  result.classList.remove("hidden");
+
+  const score = results.filter(Boolean).length;
+  const hidden = findHiddenResult();
+  const postLink = document.getElementById("postLink");
+
+  if (hidden) {
+    playHiddenClearSound();
+    resultText.innerHTML = `
+      <h2 class="hidden-result">結果:${hidden.name}</h2>
+      <p>${hidden.message}</p>
+    `;
+    const postText = `Web謎『人であることを証明してください』\n\n結果:${hidden.name}\n\nプレイはこちらから↓\n${location.href}\n#人であることを証明してください`;
+    postLink.href = "https://twitter.com/intent/tweet?text=" + encodeURIComponent(postText);
+    postLink.classList.remove("hidden");
+    return;
+  }
+
+  postLink.classList.toggle("hidden", score !== 4);
+  if (score === 4) {
+    playClearSound();
+    resultText.innerHTML = `
+      <h2 class="person">結果:人</h2>
+      <p>人度：4 / 4</p>
+    `;
+    const postText = `Web謎『人であることを証明してください』\n\n結果:人\n\nプレイはこちらから↓\n${location.href}\n#人であることを証明してください`;
+    postLink.href = "https://twitter.com/intent/tweet?text=" + encodeURIComponent(postText);
+  } else {
+    playFailureSound();
+    resultText.innerHTML = `
+      <h2 class="not-person">結果:人ではない</h2>
+      <p>人度：${score} / 4</p>
+    `;
+  }
+}
+
+document.getElementById("restart").addEventListener("click", () => {
+  current = 0;
+  results = [];
+  resultsSelections = [];
+  result.classList.add("hidden");
+  game.classList.remove("hidden");
+  renderRound();
+});
+
+renderRound();
+</script>
+</body>
+</html>
